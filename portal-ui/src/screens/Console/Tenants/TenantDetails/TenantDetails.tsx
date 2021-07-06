@@ -30,7 +30,7 @@ import {
   setTenantInfo,
   setTenantTab,
 } from "../actions";
-import { IPodListElement, ITenant } from "../ListTenants/types";
+import { ITenant } from "../ListTenants/types";
 import {
   containerForHeader,
   tenantDetailsStyles,
@@ -99,6 +99,7 @@ const TenantDetails = ({
 
   const tenantName = match.params["tenantName"];
   const tenantNamespace = match.params["tenantNamespace"];
+
   const [anchorEl, setAnchorEl] = React.useState(null);
 
   useEffect(() => {

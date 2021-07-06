@@ -28,7 +28,6 @@ import api from "../../../../common/api";
 import TableWrapper from "../../Common/TableWrapper/TableWrapper";
 import { AppState } from "../../../../store";
 import { setTenantDetailsLoad } from "../actions";
-import DeletePod from "./DeletePod";
 
 interface IPodsSummary {
   match: any;
@@ -46,9 +45,6 @@ const styles = (theme: Theme) =>
 const PodsSummary = ({ match, history, loadingTenant }: IPodsSummary) => {
   const [pods, setPods] = useState<IPodListElement[]>([]);
   const [loadingPods, setLoadingPods] = useState<boolean>(true);
-  const [deleteOpen, setDeleteOpen] = useState<boolean>(false);
-  const [selectedPod, setSelectedPod] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const tenantName = match.params["tenantName"];
   const tenantNamespace = match.params["tenantNamespace"];
@@ -59,26 +55,7 @@ const PodsSummary = ({ match, history, loadingTenant }: IPodsSummary) => {
     );
     return;
   };
-
-  const closeDeleteModalAndRefresh = (reloadData: boolean) => {
-    setDeleteOpen(false);
-
-    if (reloadData) {
-      setIsLoading(true);
-    }
-  };
-
-  const confirmDeletePod = (pod: IPodListElement) => {
-    pod.tenant = tenantName;
-    pod.namespace = tenantNamespace;
-    setSelectedPod(pod);
-    setDeleteOpen(true);
-  };
-
-  const podTableActions = [
-    { type: "view", onClick: podViewAction },
-    { type: "delete", onClick: confirmDeletePod },
-  ];
+  const podTableActions = [{ type: "view", onClick: podViewAction }];
 
   useEffect(() => {
     if (loadingTenant) {
@@ -111,13 +88,6 @@ const PodsSummary = ({ match, history, loadingTenant }: IPodsSummary) => {
 
   return (
     <Fragment>
-      {deleteOpen && (
-        <DeletePod
-          deleteOpen={deleteOpen}
-          selectedPod={selectedPod}
-          closeDeleteModalAndRefresh={closeDeleteModalAndRefresh}
-        />
-      )}
       <br />
       <TableWrapper
         columns={[

@@ -17,28 +17,23 @@
 import React, { Fragment, useCallback, useEffect, useState } from "react";
 import { connect } from "react-redux";
 import get from "lodash/get";
-import PrDashboard from "./Prometheus/PrDashboard";
-import PageHeader from "../Common/PageHeader/PageHeader";
 import Grid from "@material-ui/core/Grid";
-import { containerForHeader } from "../Common/FormComponents/common/styleLibrary";
 import { createStyles, Theme, withStyles } from "@material-ui/core/styles";
-import BasicDashboard from "./BasicDashboard/BasicDashboard";
 import { LinearProgress } from "@material-ui/core";
 import api from "../../../common/api";
 import { Usage } from "./types";
 import { setErrorSnackMessage } from "../../../actions";
+import PrDashboard from "./Prometheus/PrDashboard";
+import BasicDashboard from "./BasicDashboard/BasicDashboard";
 
-interface IDashboardSimple {
+interface IMetricsSimple {
   classes: any;
   displayErrorMessage: typeof setErrorSnackMessage;
 }
 
-const styles = (theme: Theme) =>
-  createStyles({
-    ...containerForHeader(theme.spacing(4)),
-  });
+const styles = (theme: Theme) => createStyles({});
 
-const Dashboard = ({ classes, displayErrorMessage }: IDashboardSimple) => {
+const Metrics = ({ classes, displayErrorMessage }: IMetricsSimple) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [basicResult, setBasicResult] = useState<Usage | null>(null);
 
@@ -65,22 +60,19 @@ const Dashboard = ({ classes, displayErrorMessage }: IDashboardSimple) => {
 
   return (
     <Fragment>
-      <PageHeader label="Dashboard" />
       <Grid container>
         {loading ? (
-          <Grid item xs={12} className={classes.container}>
+          <Grid item xs={12}>
             <LinearProgress />
           </Grid>
         ) : (
           <Fragment>
             {widgets !== null ? (
-              <Grid container className={classes.container}>
+              <Grid container>
                 <PrDashboard />
               </Grid>
             ) : (
-              <Grid container className={classes.container}>
-                <BasicDashboard usage={basicResult} />
-              </Grid>
+              <BasicDashboard usage={basicResult} />
             )}
           </Fragment>
         )}
@@ -93,4 +85,4 @@ const connector = connect(null, {
   displayErrorMessage: setErrorSnackMessage,
 });
 
-export default withStyles(styles)(connector(Dashboard));
+export default withStyles(styles)(connector(Metrics));

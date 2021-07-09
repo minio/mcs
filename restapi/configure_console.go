@@ -218,6 +218,8 @@ func FileServerMiddleware(next http.Handler) http.Handler {
 		switch {
 		case strings.HasPrefix(r.URL.Path, "/ws"):
 			serveWS(w, r)
+		case strings.HasPrefix(r.URL.Path, "/api/proxy"):
+			serveProxy(w, r)
 		case strings.HasPrefix(r.URL.Path, "/api"):
 			next.ServeHTTP(w, r)
 		default:

@@ -58,7 +58,7 @@ func serveProxy(responseWriter http.ResponseWriter, req *http.Request) {
 	}
 	claims, err := auth.SessionTokenAuthenticate(token)
 	if err != nil {
-		log.Println("Unable to validate the session token %s: %v", token, err)
+		log.Printf("Unable to validate the session token %s: %v\n", token, err)
 		responseWriter.WriteHeader(401)
 
 		return
@@ -79,6 +79,7 @@ func serveProxy(responseWriter http.ResponseWriter, req *http.Request) {
 	tenant, err := opClient.TenantGet(req.Context(), namespace, tenantName, metav1.GetOptions{})
 	if err != nil {
 		log.Println(err)
+		responseWriter.WriteHeader(502)
 		return
 	}
 
@@ -89,10 +90,10 @@ func serveProxy(responseWriter http.ResponseWriter, req *http.Request) {
 		tenantSchema = "http"
 	}
 
-	tenantUrl := fmt.Sprintf("%s://%s.%s.svc.%s:9443", tenantSchema, tenant.ConsoleCIServiceName(), tenant.Namespace, v2.GetClusterDomain())
+	tenantURL := fmt.Sprintf("%s://%s.%s.svc.%s:9443", tenantSchema, tenant.ConsoleCIServiceName(), tenant.Namespace, v2.GetClusterDomain())
 	// for development
-	//tenantUrl = "http://localhost:9091"
-	tenantUrl = "https://localhost:9443"
+	//tenantURL = "http://localhost:9091"
+	//tenantURL = "https://localhost:9443"
 
 	h := sha1.New()
 	h.Write([]byte(nsTenant))
@@ -101,12 +102,13 @@ func serveProxy(responseWriter http.ResponseWriter, req *http.Request) {
 	tenantCookie, err := req.Cookie(tenantCookieName)
 	if err != nil {
 		// login to tenantName
-		loginUrl := fmt.Sprintf("%s/api/v1/login", tenantUrl)
+		loginURL := fmt.Sprintf("%s/api/v1/login", tenantURL)
 
 		// get the tenant credentials
 		clientSet, err := cluster.K8sClient(STSSessionToken)
 		if err != nil {
 			log.Println(err)
+			responseWriter.WriteHeader(500)
 			return
 		}
 
@@ -123,17 +125,13 @@ func serveProxy(responseWriter http.ResponseWriter, req *http.Request) {
 		}
 		payload, _ := json.Marshal(data)
 
-		loginReq, err := http.NewRequest(http.MethodPost, loginUrl, bytes.NewReader(payload))
+		loginReq, err := http.NewRequest(http.MethodPost, loginURL, bytes.NewReader(payload))
 		if err != nil {
 			log.Println(err)
+			responseWriter.WriteHeader(500)
 			return
 		}
 		loginReq.Header.Add("Content-Type", "application/json")
-
-		if err != nil {
-			log.Println(err)
-			return
-		}
 
 		tr := &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -141,6 +139,12 @@ func serveProxy(responseWriter http.ResponseWriter, req *http.Request) {
 		client := &http.Client{Transport: tr}
 
 		loginResp, err := client.Do(loginReq)
+		if err != nil {
+			log.Println(err)
+			responseWriter.WriteHeader(500)
+			return
+		}
+
 		for _, c := range loginResp.Cookies() {
 			if c.Name == "token" {
 				tenantCookie = c
@@ -159,15 +163,15 @@ func serveProxy(responseWriter http.ResponseWriter, req *http.Request) {
 		defer loginResp.Body.Close()
 	}
 
-	origin, _ := url2.Parse(tenantUrl)
-	targetUrl, _ := url2.Parse(tenantUrl)
+	origin, _ := url2.Parse(tenantURL)
+	targetURL, _ := url2.Parse(tenantURL)
 
-	targetUrl.Scheme = "http"
+	targetURL.Scheme = "http"
 	if tenant.TLS() {
-		targetUrl.Scheme = "https"
+		targetURL.Scheme = "https"
 	}
-	targetUrl.Host = origin.Host
-	targetUrl.Path = strings.Replace(req.URL.Path, fmt.Sprintf("/api/proxy/%s/%s", namespace, tenantName), "", -1)
+	targetURL.Host = origin.Host
+	targetURL.Path = strings.Replace(req.URL.Path, fmt.Sprintf("/api/proxy/%s/%s", namespace, tenantName), "", -1)
 
 	proxiedCookie := &http.Cookie{
 		Name:     "token",
@@ -178,7 +182,7 @@ func serveProxy(responseWriter http.ResponseWriter, req *http.Request) {
 	}
 
 	proxyCookieJar, _ := cookiejar.New(nil)
-	proxyCookieJar.SetCookies(targetUrl, []*http.Cookie{proxiedCookie})
+	proxyCookieJar.SetCookies(targetURL, []*http.Cookie{proxiedCookie})
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -189,13 +193,23 @@ func serveProxy(responseWriter http.ResponseWriter, req *http.Request) {
 			return http.ErrUseLastResponse
 		}}
 
-	proxRequest, err := http.NewRequest(req.Method, targetUrl.String(), req.Body)
+	proxRequest, err := http.NewRequest(req.Method, targetURL.String(), req.Body)
+	if err != nil {
+		log.Println(err)
+		responseWriter.WriteHeader(500)
+		return
+	}
 
 	for _, v := range req.Header.Values("Content-Type") {
 		proxRequest.Header.Add("Content-Type", v)
 	}
 
 	resp, err := client.Do(proxRequest)
+	if err != nil {
+		log.Println(err)
+		responseWriter.WriteHeader(500)
+		return
+	}
 
 	for hk, hv := range resp.Header {
 		if hk != "X-Frame-Options" {

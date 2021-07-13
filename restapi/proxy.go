@@ -39,7 +39,6 @@ import (
 )
 
 func serveProxy(responseWriter http.ResponseWriter, req *http.Request) {
-	log.Println("Proxy", req.URL.Path)
 	urlParts := strings.Split(req.URL.Path, "/")
 
 	if len(urlParts) < 5 {
@@ -99,11 +98,8 @@ func serveProxy(responseWriter http.ResponseWriter, req *http.Request) {
 	h.Write([]byte(nsTenant))
 	log.Printf("Proxying request for %s/%s", namespace, tenantName)
 	tenantCookieName := fmt.Sprintf("token-%x", string(h.Sum(nil)))
-	log.Println("tenantCookieName", tenantCookieName)
 	tenantCookie, err := req.Cookie(tenantCookieName)
 	if err != nil {
-		log.Println("no cookie", err)
-
 		// login to tenantName
 		loginUrl := fmt.Sprintf("%s/api/v1/login", tenantUrl)
 
@@ -146,7 +142,6 @@ func serveProxy(responseWriter http.ResponseWriter, req *http.Request) {
 
 		loginResp, err := client.Do(loginReq)
 		for _, c := range loginResp.Cookies() {
-			fmt.Println("resp cookie:", c.Name)
 			if c.Name == "token" {
 				tenantCookie = c
 				c := &http.Cookie{
@@ -162,9 +157,6 @@ func serveProxy(responseWriter http.ResponseWriter, req *http.Request) {
 			}
 		}
 		defer loginResp.Body.Close()
-		b, _ := io.ReadAll(loginResp.Body)
-		fmt.Println(string(b))
-
 	}
 
 	origin, _ := url2.Parse(tenantUrl)
@@ -176,8 +168,6 @@ func serveProxy(responseWriter http.ResponseWriter, req *http.Request) {
 	}
 	targetUrl.Host = origin.Host
 	targetUrl.Path = strings.Replace(req.URL.Path, fmt.Sprintf("/api/proxy/%s/%s", namespace, tenantName), "", -1)
-
-	fmt.Println("targetUrl", targetUrl)
 
 	proxiedCookie := &http.Cookie{
 		Name:     "token",
@@ -208,8 +198,6 @@ func serveProxy(responseWriter http.ResponseWriter, req *http.Request) {
 	resp, err := client.Do(proxRequest)
 
 	for hk, hv := range resp.Header {
-		fmt.Println(hk, hv)
-		// allow iframing
 		if hk != "X-Frame-Options" {
 			for _, v := range hv {
 				responseWriter.Header().Add(hk, v)

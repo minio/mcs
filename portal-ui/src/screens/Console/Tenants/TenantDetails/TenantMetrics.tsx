@@ -25,8 +25,7 @@ import {
 import { ITenant } from "../ListTenants/types";
 import { setErrorSnackMessage } from "../../../../actions";
 import { AppState } from "../../../../store";
-import IframeResizer from "iframe-resizer-react";
-import { CircularProgress, LinearProgress } from "@material-ui/core";
+import { LinearProgress } from "@material-ui/core";
 
 interface ITenantMetrics {
   classes: any;
@@ -46,7 +45,7 @@ const styles = (theme: Theme) =>
     iframeStyle: {
       border: "0px",
       flex: "1 1 auto",
-      minHeight: "8s00px",
+      minHeight: "800px",
       width: "100%",
     },
     ...containerForHeader(theme.spacing(4)),
